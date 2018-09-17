@@ -20,7 +20,7 @@ device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 class Agent():
     """Interacts with and learns from the environment."""
 
-    def __init__(self, state_size, action_size, seed):
+    def __init__(self, state_size, action_size, seed, is_ddqn = True, loss_func = "mse"):
         """Initialize an Agent object.
         
         Params
@@ -32,6 +32,8 @@ class Agent():
         self.state_size = state_size
         self.action_size = action_size
         self.seed = random.seed(seed)
+        self.is_ddqn = is_ddqn
+        self.loss_func = loss_func
 
         # Q-Network
         self.qnetwork_local = QNetwork(state_size, action_size, seed).to(device)
@@ -42,6 +44,10 @@ class Agent():
         self.memory = ReplayBuffer(action_size, BUFFER_SIZE, BATCH_SIZE, seed)
         # Initialize time step (for updating every UPDATE_EVERY steps)
         self.t_step = 0
+
+        # Finally naming the agent
+        self.name = "d" if is_ddqn else ""
+        self.name+= "dqn_" + self.qnetwork_local.name
     
     def step(self, state, action, reward, next_state, done):
         # Save experience in replay memory
@@ -88,7 +94,14 @@ class Agent():
         states, actions, rewards, next_states, dones = experiences
 
         # Q-target for the next state, computed with the frozen network
-        q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
+        if self.is_ddqn:
+            # Double DQN : selects the best action with target network, but uses
+            # frozen network to compute the target
+            a_tgt = self.qnetwork_local(next_states).detach().argmax(dim=1).unsqueeze(1)
+            q_targets_next = self.qnetwork_target(next_states).gather(1, a_tgt).detach()
+        else:
+            # Regular DQN algorithm : choose from target network
+            q_targets_next = self.qnetwork_target(next_states).detach().max(1)[0].unsqueeze(1)
 
         # Bellman update equation for updating q
         q_targets = rewards + (gamma * q_targets_next * (1 - dones))
@@ -96,7 +109,8 @@ class Agent():
         # Now, training the model with updated targets
         # Running the forward pass to define the loss
         q_model = self.qnetwork_local(states).gather(1, actions)
-        loss = F.mse_loss(q_model, q_targets)
+        if loss_func = 
+        loss = F.smooth_l1_loss(q_model, q_targets)
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()

@@ -8,7 +8,7 @@ class QNetwork(nn.Module):
     Implements fully connected layers
     """
 
-    def __init__(self, state_size, action_size, seed, hidden_layers = [32, 32]):
+    def __init__(self, state_size, action_size, seed, hidden_layers = [64, 64]):
         """Initialize parameters and build model.
         Params
         ======
@@ -22,6 +22,7 @@ class QNetwork(nn.Module):
         layers = [state_size] + hidden_layers + [action_size]
         layers = zip(layers, layers[1:])
         self.hl = nn.ModuleList([nn.Linear(h1, h2) for h1, h2 in layers])
+        self.name = "_".join([str(x) for x in hidden_layers])
 
     def forward(self, state):
         """Build a network that maps state -> action values."""
